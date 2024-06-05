@@ -17,6 +17,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'comanda_create_model.dart';
 import 'models.dart';
 export 'comanda_create_model.dart';
+import '../config.dart';
 
 class ComandaCreateWidget extends StatefulWidget {
   const ComandaCreateWidget({
@@ -63,7 +64,7 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
 
   void initSocket() {
     socket = io.io(
-        'http://192.168.100.224:3000/comanda',
+        '$backendUrl/comanda',
         io.OptionBuilder()
             .setTransports(['websocket']) // for Flutter or Dart VM
             .enableAutoConnect() // auto-connection enabled
@@ -179,7 +180,7 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
     final file = File(_filePath!);
     final fileSize = await file.length();
 
-    final uri = Uri.parse('http://192.168.100.224:3000/voice-to-text');
+    final uri = Uri.parse('$backendUrl/voice-to-text');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(await http.MultipartFile.fromPath(
         'file',
@@ -199,6 +200,120 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
     }
   }
 
+  Future<void> _sendComanda(BuildContext context) async {
+    _showLoadingDialog(context); // Muestra el diálogo de carga
+
+    final uri = Uri.parse('$backendUrl/pedido');
+    try {
+      final request = await http.post(uri, body: {
+        "id_mesero": '1',
+        "nro_mesa": nroMesaController.text,
+        "nombre_comensal": nombre_cliente,
+        "plato": platos.toString(),
+        "bebida": bebidas.toString(),
+        "extras": detallesController.text
+      });
+
+      Navigator.of(context).pop(); // Cierra el diálogo de carga
+
+      if (request.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Comanda registrada con éxito')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al enviar comanda: ${request.statusCode}')));
+      }
+    } catch (e) {
+      Navigator.of(context)
+          .pop(); // Asegúrate de cerrar el diálogo en caso de error
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error al enviar comanda: $e')));
+    }
+  }
+
+  void _showLoadingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible:
+          false, // Impide que se cierre el diálogo al tocar fuera de él.
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Enviando..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmar eliminación'),
+          content: Text('¿Estás seguro de que deseas eliminar esta bebida?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Eliminar'),
+              onPressed: () {
+                setState(() {
+                  bebidas.removeAt(index);
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteP(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmar eliminación'),
+          content: Text('¿Estás seguro de que deseas eliminar este plato?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Eliminar'),
+              onPressed: () {
+                setState(() {
+                  print("index : " + index.toString());
+
+                  platos.removeAt(index);
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     nroMesaController.dispose();
@@ -213,7 +328,6 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
     // Customize what your widget looks like when it's loading.
     return Scaffold(
       key: scaffoldKey,
-      backgroundColor: FlutterFlowTheme.of(context).secondary,
       appBar: AppBar(
         backgroundColor: Colors.white,
         automaticallyImplyLeading: true,
@@ -483,6 +597,11 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
                                             platos[index]['cantidad'] = value;
                                           });
                                         },
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: <TextInputFormatter>[
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                        ],
                                       ),
                                     ),
                                     SizedBox(width: 10),
@@ -538,6 +657,14 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
                                         },
                                       ),
                                     ),
+                                    SizedBox(width: 10),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        _confirmDeleteP(context, index);
+                                      },
+                                    ),
                                   ],
                                 ),
                               );
@@ -552,6 +679,171 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
                                 });
                               },
                               child: Text('Añadir Plato'),
+                            ),
+                          ),
+                          Divider(
+                            height: 30,
+                            thickness: 0.5,
+                            color: FlutterFlowTheme.of(context).tertiary,
+                          ),
+                          Padding(
+                            padding:
+                                EdgeInsetsDirectional.fromSTEB(0, 10, 0, 5),
+                            child: Text(
+                              'Bebidas',
+                              style: FlutterFlowTheme.of(context)
+                                  .bodySmall
+                                  .override(
+                                    fontFamily: 'Playfair Display',
+                                    color:
+                                        FlutterFlowTheme.of(context).tertiary,
+                                    fontSize: 15,
+                                    letterSpacing: 0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          ),
+                          Column(
+                            children: List.generate(bebidas.length, (index) {
+                              return Padding(
+                                padding: EdgeInsets.symmetric(vertical: 5),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: TextFormField(
+                                          initialValue: bebidas[index]
+                                              ['cantidad'],
+                                          decoration: InputDecoration(
+                                            hintText: 'Cantidad',
+                                            hintStyle:
+                                                FlutterFlowTheme.of(context)
+                                                    .bodySmall
+                                                    .override(
+                                                      fontFamily:
+                                                          'Playfair Display',
+                                                      color:
+                                                          FlutterFlowTheme.of(
+                                                                  context)
+                                                              .tertiary
+                                                              .withOpacity(0.5),
+                                                      fontSize: 15,
+                                                    ),
+                                            enabledBorder: UnderlineInputBorder(
+                                              borderSide: BorderSide(
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .primary,
+                                                width: 1,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4.0),
+                                            ),
+                                            focusedBorder: UnderlineInputBorder(
+                                              borderSide: BorderSide(
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .primary,
+                                                width: 2,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4.0),
+                                            ),
+                                          ),
+                                          style: FlutterFlowTheme.of(context)
+                                              .bodyMedium
+                                              .override(
+                                                fontFamily: 'Playfair Display',
+                                                fontSize: 15,
+                                                letterSpacing: 0,
+                                              ),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              bebidas[index]['cantidad'] =
+                                                  value;
+                                            });
+                                          },
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: <TextInputFormatter>[
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ]),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      flex: 4,
+                                      child: TextFormField(
+                                        initialValue: bebidas[index]['nombre'],
+                                        decoration: InputDecoration(
+                                          hintText: 'Nombre de la bebida',
+                                          hintStyle: FlutterFlowTheme.of(
+                                                  context)
+                                              .bodySmall
+                                              .override(
+                                                fontFamily: 'Playfair Display',
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .tertiary
+                                                        .withOpacity(0.5),
+                                                fontSize: 15,
+                                              ),
+                                          enabledBorder: UnderlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primary,
+                                              width: 1,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(4.0),
+                                          ),
+                                          focusedBorder: UnderlineInputBorder(
+                                            borderSide: BorderSide(
+                                              color:
+                                                  FlutterFlowTheme.of(context)
+                                                      .primary,
+                                              width: 2,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(4.0),
+                                          ),
+                                        ),
+                                        style: FlutterFlowTheme.of(context)
+                                            .bodyMedium
+                                            .override(
+                                              fontFamily: 'Playfair Display',
+                                              fontSize: 15,
+                                              letterSpacing: 0,
+                                            ),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            bebidas[index]['nombre'] = value;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: 10),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        _confirmDelete(context, index);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  bebidas.add({'cantidad': '', 'nombre': ''});
+                                });
+                              },
+                              child: Text('Añadir Bebida'),
                             ),
                           ),
                         ],
@@ -661,15 +953,17 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
               width: double.infinity,
               height: 84,
               decoration: BoxDecoration(
-                color: FlutterFlowTheme.of(context).secondary,
+                color: FlutterFlowTheme.of(context).primary,
               ),
               child: Align(
                 alignment: AlignmentDirectional(0, 0),
                 child: FFButtonWidget(
-                  onPressed: () async {},
-                  text: 'Add to Collection',
+                  onPressed: () async {
+                    _sendComanda(context);
+                  },
+                  text: 'Crear comanda',
                   icon: Icon(
-                    Icons.favorite_border,
+                    Icons.save,
                     color: Colors.white,
                     size: 15,
                   ),
