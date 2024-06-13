@@ -1,16 +1,14 @@
 import '../comanda/comanda_create_widget.dart';
 import '../config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
-import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'comanda.dart';
 import 'home_page_model.dart';
 export 'home_page_model.dart';
+import 'package:intl/intl.dart';
 
 class HomePageWidget extends StatefulWidget {
   const HomePageWidget({super.key});
@@ -26,7 +24,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
   String _response = '';
   final scaffoldKey = GlobalKey<ScaffoldState>();
   Future<void> fetchData() async {
-    final url = 'http://192.168.100.224:3000/voice-to-text/hola';
+    final url = '$backendUrl/voice-to-text/hola';
     try {
       final response = await http.get(Uri.parse(url));
 
@@ -64,6 +62,14 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     }
   }
 
+  List<Comanda> filterComandasByToday(List<Comanda> comandas) {
+    // Obtener la fecha de hoy en formato "mm/dd/yyyy"
+    String today = DateFormat('MM/dd/yyyy').format(DateTime.now());
+
+    // Filtrar las comandas por la fecha de hoy
+    return comandas.where((comanda) => comanda.fecha == today).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -80,8 +86,21 @@ class _HomePageWidgetState extends State<HomePageWidget> {
     super.dispose();
   }
 
+  void onEstadoChanged(int nroPedido, bool nuevoEstado) {
+    setState(() {
+      // Actualiza el estado de la comanda específica
+      final index =
+          comandas.indexWhere((comanda) => comanda.nroPedido == nroPedido);
+      if (index != -1) {
+        comandas[index].estado = nuevoEstado;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    List<Comanda> filteredComandas = filterComandasByToday(comandas);
+
     return Scaffold(
       key: scaffoldKey,
       body: SingleChildScrollView(
@@ -109,7 +128,7 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         Padding(
                           padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 17),
                           child: Image.network(
-                            'https://scontent.fvvi1-1.fna.fbcdn.net/v/t1.15752-9/441501511_814139113971100_2713612025277906792_n.png?_nc_cat=104&ccb=1-7&_nc_sid=5f2048&_nc_ohc=6xRn7uJFBkEQ7kNvgF4F63i&_nc_ht=scontent.fvvi1-1.fna&oh=03_Q7cD1QHqyMLcymWyaNeG94vpX0D5Kz_oc05cdamCSpawCDkezg&oe=667DBBC3',
+                            'https://scontent.fvvi1-2.fna.fbcdn.net/v/t1.15752-9/448181411_834334038556433_7077227109625534536_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=5f2048&_nc_ohc=aO2PWOshcm0Q7kNvgGWp94q&_nc_ht=scontent.fvvi1-2.fna&oh=03_Q7cD1QEduNDoRsCCxkgnGuKlj9h0CFil992wBNB1KUgI5bnKqg&oe=669293E4',
                             width: 120,
                             fit: BoxFit.cover,
                           ),
@@ -157,21 +176,13 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                         RefreshIndicator(
                           onRefresh: fetchComandas,
                           child: Container(
-                            height: MediaQuery.of(context).size.height *
-                                0.6, // Ajusta según sea necesario
-                            child: GridView.builder(
-                              padding: EdgeInsets.zero,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: 1.0,
-                              ),
-                              itemCount: comandas.length,
-                              itemBuilder: (context, index) {
-                                final comanda = comandas[index];
-
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: GridView.count(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 1.0,
+                              children: filteredComandas.map((comanda) {
                                 // Parsear los datos de la comanda
                                 List<String> platos = comanda.plato
                                     .map((item) =>
@@ -190,11 +201,13 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                   platos: platos,
                                   bebidas: bebidas,
                                   extras: comanda.extras,
+                                  estado: comanda.estado,
+                                  onEstadoChanged: onEstadoChanged,
                                 );
-                              },
+                              }).toList(),
                             ),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -229,6 +242,8 @@ class ComandaCard extends StatelessWidget {
   final List<String> platos;
   final List<String> bebidas;
   final String extras;
+  final bool estado;
+  final Function(int, bool) onEstadoChanged;
 
   const ComandaCard({
     Key? key,
@@ -239,6 +254,8 @@ class ComandaCard extends StatelessWidget {
     required this.platos,
     required this.bebidas,
     required this.extras,
+    required this.estado,
+    required this.onEstadoChanged,
   }) : super(key: key);
 
   void _confirmDeletion(BuildContext context) {
@@ -268,13 +285,46 @@ class ComandaCard extends StatelessWidget {
     );
   }
 
+  Future<void> _cambiarEstado(BuildContext context) async {
+    bool nuevoEstado = !estado;
+
+    try {
+      // Aquí se debe implementar la lógica para enviar la solicitud al backend
+      // Ejemplo: Suponiendo que tienes una URL y headers configurados
+      // final responses = await http.get(Uri.parse('$backendUrl/$nroPedido'));
+
+      final response = await http.put(
+        Uri.parse('$backendUrl/pedido/$nroPedido'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: '{"estado": $nuevoEstado}',
+      );
+
+      if (response.statusCode == 200) {
+        // Actualiza el estado localmente llamando al callback
+        onEstadoChanged(nroPedido, nuevoEstado);
+      } else {
+        throw Exception('Error al actualizar el estado del pedido');
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cambiar el estado: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    Color cardColor = estado
+        ? Colors.green
+        : Colors.orange; // Color verde si pedido.estado es true
+
     return InkWell(
       onTap: () => _showDetailsModal(context),
       child: Card(
         clipBehavior: Clip.antiAliasWithSaveLayer,
-        color: Colors.white,
+        color: cardColor, // Usamos cardColor para determinar el color de fondo
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -283,12 +333,25 @@ class ComandaCard extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.all(10),
-              child: Text(
-                'Mesa $numeroMesa',
-                style: TextStyle(
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mesa $numeroMesa',
+                    style: TextStyle(
+                      fontSize: 35,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  // Botón para cambiar el estado del pedido
+                  ElevatedButton(
+                    onPressed: () => _cambiarEstado(context),
+                    child: Text(estado
+                        ? 'Marcar como Pendiente'
+                        : 'Marcar como Completado'),
+                  ),
+                ],
               ),
             ),
             Positioned(

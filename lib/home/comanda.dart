@@ -7,7 +7,7 @@ class Comanda {
   final String nombreComensal;
   final String fecha;
   final String hora;
-  final bool estado;
+  bool estado;
   final List<Map<String, dynamic>> plato;
   final List<Map<String, dynamic>> bebida;
   final String extras;
