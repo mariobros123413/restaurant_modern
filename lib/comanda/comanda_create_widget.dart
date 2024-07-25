@@ -200,6 +200,7 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
 
   Future<void> _sendComanda(BuildContext context) async {
     _showLoadingDialog(context); // Muestra el diálogo de carga
+    String today = DateFormat('MM/dd/yyyy').format(DateTime.now());
 
     final uri = Uri.parse('$backendUrl/pedido');
     try {
@@ -209,7 +210,8 @@ class _ComandaCreateWidgetState extends State<ComandaCreateWidget> {
         "nombre_comensal": nombre_cliente,
         "plato": platos.toString(),
         "bebida": bebidas.toString(),
-        "extras": detallesController.text
+        "extras": detallesController.text,
+        "fecha": today
       });
 
       Navigator.of(context).pop(); // Cierra el diálogo de carga

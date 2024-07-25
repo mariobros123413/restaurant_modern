@@ -194,16 +194,16 @@ class _HomePageWidgetState extends State<HomePageWidget> {
                                     .toList();
 
                                 return ComandaCard(
-                                  nroPedido: comanda.nroPedido,
-                                  numeroMesa: comanda.nroMesa,
-                                  horaPedido: comanda.fecha,
-                                  hora: comanda.hora,
-                                  platos: platos,
-                                  bebidas: bebidas,
-                                  extras: comanda.extras,
-                                  estado: comanda.estado,
-                                  onEstadoChanged: onEstadoChanged,
-                                );
+                                    nroPedido: comanda.nroPedido,
+                                    numeroMesa: comanda.nroMesa,
+                                    horaPedido: comanda.fecha,
+                                    hora: comanda.hora,
+                                    platos: platos,
+                                    bebidas: bebidas,
+                                    extras: comanda.extras,
+                                    estado: comanda.estado,
+                                    onEstadoChanged: onEstadoChanged,
+                                    nombreComensal: comanda.nombreComensal);
                               }).toList(),
                             ),
                           ),
@@ -244,24 +244,26 @@ class ComandaCard extends StatelessWidget {
   final String extras;
   final bool estado;
   final Function(int, bool) onEstadoChanged;
+  final String nombreComensal;
 
-  const ComandaCard({
-    Key? key,
-    required this.nroPedido,
-    required this.numeroMesa,
-    required this.horaPedido,
-    required this.hora,
-    required this.platos,
-    required this.bebidas,
-    required this.extras,
-    required this.estado,
-    required this.onEstadoChanged,
-  }) : super(key: key);
+  const ComandaCard(
+      {Key? key,
+      required this.nroPedido,
+      required this.numeroMesa,
+      required this.horaPedido,
+      required this.hora,
+      required this.platos,
+      required this.bebidas,
+      required this.extras,
+      required this.estado,
+      required this.onEstadoChanged,
+      required this.nombreComensal})
+      : super(key: key);
 
   void _confirmDeletion(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text('Eliminar Comanda'),
           content: Text('¿Estás seguro de que deseas eliminar esta comanda?'),
@@ -269,14 +271,15 @@ class ComandaCard extends StatelessWidget {
             TextButton(
               child: Text('Cancelar'),
               onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
+                Navigator.of(dialogContext).pop(); // Cierra el diálogo
               },
             ),
             TextButton(
               child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-              onPressed: () {
-                deletePedido(context, nroPedido);
-                Navigator.of(context).pop(); // Cierra el diálogo
+              onPressed: () async {
+                await deletePedido(context, nroPedido);
+                Navigator.of(dialogContext)
+                    .pop(); // Cierra el diálogo después de eliminar el pedido
               },
             ),
           ],
@@ -391,6 +394,9 @@ class ComandaCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Mesa: $numeroMesa',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Para: $nombreComensal',
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 Text('Hora del pedido: $horaPedido $hora',
